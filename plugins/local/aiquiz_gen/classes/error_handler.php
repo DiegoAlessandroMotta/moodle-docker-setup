@@ -52,7 +52,7 @@ class error_handler {
      * @return array Error details array
      */
     public static function handle_exception(
-        \Exception $exception,
+        \Throwable $exception,
         ?int $requestid = null,
         string $component = 'unknown',
         string $severity = self::SEVERITY_ERROR

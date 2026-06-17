@@ -998,6 +998,8 @@ function local_aiquiz_gen_handle_generate_questions(int $requestid) {
             'time_limit' => $totalquestions > 20 ? 300 : $oldtimelimit,
         ], $requestid);
 
+        \core\session\manager::write_close();
+
         // Execute the adhoc task directly (synchronous).
         $task = new \local_aiquiz_gen\task\generate_questions_adhoc();
         $task->set_custom_data((object)[

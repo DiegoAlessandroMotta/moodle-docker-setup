@@ -1334,7 +1334,7 @@ class quiz_deployer {
         }
 
         // Update quiz sumgrades.
-        quiz_update_sumgrades($quiz);
+        \mod_quiz\grade_calculator::create(\mod_quiz\quiz_settings::create($quiz->id))->recompute_quiz_sumgrades();
 
         return $added;
     }
