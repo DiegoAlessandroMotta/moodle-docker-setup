@@ -60,11 +60,12 @@ $CFG->directorypermissions  = 02777;
 $CFG->pathtophp             = '/usr/local/bin/php';
 
 // --- Router (Moodle 5.x) ---------------------------------------------
-// Suppresses the "Router not configured" env check warning. The value
-// is the FQCN of the router implementation bundled with core. If
-// your Moodle version still flags it, check the corresponding class
-// under lib/router/ in your checkout.
-$CFG->router_class = '\\core\\router\\request_stack_router';
+// Suppresses the "Router not configured" env check warning. Moodle 5.x
+// uses a Slim-based router and expects a boolean flag here, NOT a
+// class FQCN. The actual URL rewriting must be done by the web
+// server (Apache: mod_rewrite; Caddy: handle_path). See
+// https://docs.moodle.org/en/Configuring_the_Router
+$CFG->routerconfigured = true;
 
 // --- Debug vs production ---------------------------------------------
 // MOODLE_DEBUG=1 enables verbose developer output; anything else

@@ -2,6 +2,7 @@
 .env
 .temp
 docker-reference
+moodle-code
 
 # mkcert certs and keys (keep the directory via .gitkeep, ignore the contents)
 docker/caddy/certs/*
