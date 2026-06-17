@@ -9,3 +9,4 @@ plugins-reference
 docker/caddy/certs/*
 !docker/caddy/certs/.gitkeep
 data
+debug-errors

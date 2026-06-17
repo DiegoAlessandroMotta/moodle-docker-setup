@@ -21,13 +21,14 @@
  *     docker compose exec moodle php /var/www/html/local/aiquiz_gen/bin/seed_provider.php
  *
  * Reads:
- *     MOODLE_AI_PROVIDER      gemini | openai | ollama (default: gemini)
+ *     MOODLE_AI_PROVIDER        gemini | openai | ollama (default: gemini)
  *     MOODLE_AI_GEMINI_APIKEY
- *     MOODLE_AI_GEMINI_MODEL  default: gemini-2.5-flash
  *     MOODLE_AI_OPENAI_APIKEY
- *     MOODLE_AI_OPENAI_MODEL  default: gpt-4o-mini
- *     MOODLE_AI_OLLAMA_BASEURL default: http://host.docker.internal:11434
- *     MOODLE_AI_OLLAMA_MODEL  default: llama3.1
+ *     MOODLE_AI_OLLAMA_BASEURL   default: http://host.docker.internal:11434
+ *     MOODLE_AI_MODEL            (provider-agnostic; falls back to provider default)
+ *                                default gemini: gemini-2.5-flash
+ *                                default openai: gpt-4o-mini
+ *                                default ollama: llama3.1
  *
  * Idempotent: existing providers (matched by name) are updated in place,
  * not duplicated. Re-run safely.
@@ -49,21 +50,26 @@ $providers = [
     'gemini' => [
         'class' => 'aiprovider_gemini\\provider',
         'name' => 'gemini',
-        'config' => static function (): array {
+        'config' => static function ($existing = null): array {
             $key = trim((string)getenv('MOODLE_AI_GEMINI_APIKEY'));
+            if ($key === '' && $existing) {
+                $existingconfig = json_decode($existing->config ?? '', true) ?: [];
+                $key = trim((string)($existingconfig['apikey'] ?? ''));
+            }
             if ($key === '') {
-                throw new \RuntimeException('MOODLE_AI_GEMINI_APIKEY is not set.');
+                throw new \RuntimeException('MOODLE_AI_GEMINI_APIKEY is not set (and no existing record to reuse).');
             }
             return ['apikey' => $key];
         },
         'actions' => static function (): array {
-            $model = trim((string)(getenv('MOODLE_AI_GEMINI_MODEL') ?: 'gemini-2.5-flash'));
+            $model = trim((string)(getenv('MOODLE_AI_MODEL') ?: 'gemini-2.5-flash'));
+            $endpoint = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
             return [
                 'core_ai\\aiactions\\generate_text' => [
                     'enabled' => true,
                     'settings' => [
                         'model' => $model,
-                        'endpoint' => 'https://generativelanguage.googleapis.com/v1beta',
+                        'endpoint' => $endpoint,
                         'systeminstruction' => '',
                     ],
                 ],
@@ -71,7 +77,7 @@ $providers = [
                     'enabled' => true,
                     'settings' => [
                         'model' => $model,
-                        'endpoint' => 'https://generativelanguage.googleapis.com/v1beta',
+                        'endpoint' => $endpoint,
                         'systeminstruction' => '',
                     ],
                 ],
@@ -81,21 +87,26 @@ $providers = [
     'openai' => [
         'class' => 'aiprovider_openai\\provider',
         'name' => 'openai',
-        'config' => static function (): array {
+        'config' => static function ($existing = null): array {
             $key = trim((string)getenv('MOODLE_AI_OPENAI_APIKEY'));
+            if ($key === '' && $existing) {
+                $existingconfig = json_decode($existing->config ?? '', true) ?: [];
+                $key = trim((string)($existingconfig['apikey'] ?? ''));
+            }
             if ($key === '') {
-                throw new \RuntimeException('MOODLE_AI_OPENAI_APIKEY is not set.');
+                throw new \RuntimeException('MOODLE_AI_OPENAI_APIKEY is not set (and no existing record to reuse).');
             }
             return ['apikey' => $key];
         },
         'actions' => static function (): array {
-            $model = trim((string)(getenv('MOODLE_AI_OPENAI_MODEL') ?: 'gpt-4o-mini'));
+            $model = trim((string)(getenv('MOODLE_AI_MODEL') ?: 'gpt-4o-mini'));
+            $endpoint = 'https://api.openai.com/v1/chat/completions';
             return [
                 'core_ai\\aiactions\\generate_text' => [
                     'enabled' => true,
                     'settings' => [
                         'model' => $model,
-                        'endpoint' => 'https://api.openai.com/v1',
+                        'endpoint' => $endpoint,
                         'systeminstruction' => '',
                     ],
                 ],
@@ -103,7 +114,7 @@ $providers = [
                     'enabled' => true,
                     'settings' => [
                         'model' => $model,
-                        'endpoint' => 'https://api.openai.com/v1',
+                        'endpoint' => $endpoint,
                         'systeminstruction' => '',
                     ],
                 ],
@@ -113,12 +124,12 @@ $providers = [
     'ollama' => [
         'class' => 'aiprovider_ollama\\provider',
         'name' => 'ollama',
-        'config' => static function (): array {
+        'config' => static function ($existing = null): array {
             $base = trim((string)(getenv('MOODLE_AI_OLLAMA_BASEURL') ?: 'http://host.docker.internal:11434'));
             return ['apikey' => 'ollama', 'baseurl' => $base];
         },
         'actions' => static function (): array {
-            $model = trim((string)(getenv('MOODLE_AI_OLLAMA_MODEL') ?: 'llama3.1'));
+            $model = trim((string)(getenv('MOODLE_AI_MODEL') ?: 'llama3.1'));
             $base = trim((string)(getenv('MOODLE_AI_OLLAMA_BASEURL') ?: 'http://host.docker.internal:11434'));
             return [
                 'core_ai\\aiactions\\generate_text' => [
@@ -148,8 +159,10 @@ if (!isset($providers[$provider])) {
 
 $spec = $providers[$provider];
 
+$existing = $DB->get_record('ai_providers', ['provider' => $spec['class']]);
+
 try {
-    $config = ($spec['config'])();
+    $config = ($spec['config'])($existing);
     $actionconfig = ($spec['actions'])();
 } catch (\RuntimeException $e) {
     cli_error($e->getMessage());
@@ -157,8 +170,6 @@ try {
 
 $configjson = json_encode($config, JSON_UNESCAPED_SLASHES);
 $actionjson = json_encode($actionconfig, JSON_UNESCAPED_SLASHES);
-
-$existing = $DB->get_record('ai_providers', ['provider' => $spec['class']]);
 
 if ($existing) {
     $existing->config = $configjson;
