@@ -11,7 +11,7 @@ services:
       dockerfile: Dockerfile
       args:
         PHP_VERSION: ${PHP_VERSION:-8.3}
-        MOODLE_BRANCH: ${MOODLE_BRANCH:-MOODLE_502_STABLE}
+        MOODLE_TARBALL_URL: ${MOODLE_TARBALL_URL:-https://packaging.moodle.org/stable502/moodle-latest-502.tgz}
     image: moodle-dev:5.2
     container_name: moodle-app
     restart: unless-stopped

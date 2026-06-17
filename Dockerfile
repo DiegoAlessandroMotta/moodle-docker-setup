@@ -6,12 +6,11 @@
 #
 
 ARG PHP_VERSION=8.3
-ARG MOODLE_BRANCH=MOODLE_502_STABLE
+ARG MOODLE_TARBALL_URL=https://packaging.moodle.org/stable502/moodle-latest-502.tgz
 
 FROM moodlehq/moodle-php-apache:${PHP_VERSION}
 
-ARG MOODLE_BRANCH
-ARG MOODLE_REPO=https://github.com/moodle/moodle.git
+ARG MOODLE_TARBALL_URL
 
 # Stay as root. The base image's entrypoint (moodle-docker-php-ini) writes
 # to /usr/local/etc/php/conf.d/ to apply env-driven PHP overrides and
@@ -19,13 +18,13 @@ ARG MOODLE_REPO=https://github.com/moodle/moodle.git
 # via the base image's own configuration.
 USER root
 
-# Install git + composer and prepare /var/www/html for a www-data-owned clone.
-# One layer: no extra COPY+chown over tens of thousands of files.
+# Install curl + ca-certificates + composer, prepare /var/www/html for
+# a www-data-owned extract. No git — we ship Moodle as a tarball.
+# Single layer keeps the image compact and the build deterministic.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        git \
-        ca-certificates \
         curl \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && curl -sS https://getcomposer.org/installer \
         | php -- --install-dir=/usr/local/bin --filename=composer \
@@ -33,10 +32,17 @@ RUN apt-get update \
     && mkdir -p /var/www/html \
     && chown www-data:www-data /var/www/html
 
-# Clone directly into /var/www/html as www-data. Files come out with
-# correct ownership — no recursive chown needed afterwards.
+# Download the Moodle release tarball and extract as www-data.
+# Faster than `git clone --depth 1`: one HTTP request, no .git metadata,
+# no Git smart-protocol overhead, no packfile negotiation.
+# --no-same-owner: extracted files inherit the current user (www-data),
+# so no recursive chown is needed afterwards.
+# --strip-components=1: the tarball's top-level "moodle/" directory is
+# dropped, so contents land directly in /var/www/html.
 USER www-data
-RUN git clone --depth 1 --branch "${MOODLE_BRANCH}" "${MOODLE_REPO}" /var/www/html
+RUN curl -fsSL -o /tmp/moodle.tgz "${MOODLE_TARBALL_URL}" \
+    && tar -xzf /tmp/moodle.tgz -C /var/www/html --strip-components=1 --no-same-owner \
+    && rm /tmp/moodle.tgz
 
 # Install Composer dependencies. Moodle 5.x requires a populated vendor/
 # directory (env check fails otherwise in the install wizard).
