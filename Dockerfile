@@ -68,8 +68,13 @@ RUN mkdir -p /var/www/moodledata \
 
 # Layer in custom plugins from the build context. The plugins/ directory
 # mirrors Moodle's expected layout (e.g. plugins/local/aiquiz_gen lands
-# at /var/www/html/local/aiquiz_gen), so a single COPY preserves the
-# type-aware hierarchy.
+# at /var/www/html/public/local/aiquiz_gen), so a single COPY preserves
+# the type-aware hierarchy.
+#
+# Moodle 5.2 moved the webroot to public/. All plugin directories (local/,
+# mod/, blocks/, theme/, filter/, etc.) live under public/. Earlier
+# versions of this Dockerfile copied to /var/www/html/ which placed
+# plugins outside the webroot and made them invisible to Moodle.
 #
 # Placed AFTER composer install: if any plugin declares Composer
 # dependencies, adding them here would force a vendor/ rebuild on every
@@ -78,6 +83,6 @@ RUN mkdir -p /var/www/moodledata \
 #
 # --chown: plugins are written by www-data once installed/upgraded, so
 # the file ownership must match what Moodle's plugin code expects.
-COPY --chown=www-data:www-data plugins/ /var/www/html/
+COPY --chown=www-data:www-data plugins/ /var/www/html/public/
 
 EXPOSE 80

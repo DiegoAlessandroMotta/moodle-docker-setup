@@ -53,20 +53,6 @@ function local_aiquiz_gen_extend_navigation_course(navigation_node $navigation, 
 }
 
 /**
- * Ensure Font Awesome is available for all plugin pages (icons rely on it).
- *
- * @return void
- */
-function local_aiquiz_gen_before_http_headers() {
-    global $PAGE;
-
-    // From Moodle 4.1+ the renderer exposes fontawesome(); guard for safety on custom builds.
-    if (!empty($PAGE) && method_exists($PAGE->requires, 'fontawesome')) {
-        $PAGE->requires->fontawesome();
-    }
-}
-
-/**
  * Serve plugin files.
  *
  * @param stdClass $course Course object
