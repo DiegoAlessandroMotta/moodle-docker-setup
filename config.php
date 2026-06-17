@@ -1,38 +1,39 @@
 <?php  // Moodle configuration file
 //
-// Reads database and site settings from environment variables
-// injected by docker-compose.yml. Edit values in .env, not here.
+// Reads every value from environment variables injected by
+// docker-compose. Configure via .env (dev) or your platform's
+// env var UI (Dokploy / Portainer / etc.) — never edit this file.
 
 unset($CFG);
 global $CFG;
 $CFG = new stdClass();
 
 // --- Database ---------------------------------------------------------
-$CFG->dbtype    = 'mariadb';
+$CFG->dbtype    = getenv('MOODLE_DOCKER_DBTYPE') ?: 'mariadb';
 $CFG->dblibrary = 'native';
 $CFG->dbhost    = getenv('MOODLE_DOCKER_DBHOST') ?: 'db';
+$cfgDbport      = getenv('MOODLE_DOCKER_DBPORT') ?: '3306';
 $CFG->dbname    = getenv('MOODLE_DOCKER_DBNAME') ?: 'moodle';
 $CFG->dbuser    = getenv('MOODLE_DOCKER_DBUSER') ?: 'moodle';
 $CFG->dbpass    = getenv('MOODLE_DOCKER_DBPASS') ?: '';
 $CFG->prefix    = 'mdl_';
 $CFG->dboptions = [
     'dbpersist'   => 0,
-    'dbport'      => 3306,
+    'dbport'      => (int)$cfgDbport,
     'dbsocket'    => '',
     'dbcollation' => getenv('MOODLE_DOCKER_DBCOLLATION') ?: 'utf8mb4_bin',
 ];
+unset($cfgDbport);
 
 // --- Site URL ---------------------------------------------------------
 // Protocol can be "http" or "https". When behind a reverse proxy
-// (Caddy, Traefik, nginx) set MOODLE_DOCKER_BEHIND_PROXY=1 so Moodle
-// honours the X-Forwarded-Proto header.
+// (Traefik in Dokploy, Caddy in dev) set MOODLE_DOCKER_BEHIND_PROXY=1
+// so Moodle honours the X-Forwarded-Proto header.
 $protocol = strtolower(getenv('MOODLE_DOCKER_WEB_PROTOCOL') ?: 'http');
 $protocol = in_array($protocol, ['http', 'https'], true) ? $protocol : 'http';
 
 $host = getenv('MOODLE_DOCKER_WEB_HOST') ?: 'localhost';
 $port = getenv('MOODLE_DOCKER_WEB_PORT') ?: '';
-// explode() can return more than one part when the value is "bind_ip:port";
-// end() requires a variable, not an expression (PHP 7+).
 $portParts = explode(':', $port);
 $port = end($portParts);
 
@@ -49,8 +50,6 @@ if ($port !== '' && (string)(int)$port === (string)$port) {
 $CFG->wwwroot = $protocol . '://' . $host . $portSuffix;
 
 if (getenv('MOODLE_DOCKER_BEHIND_PROXY') === '1') {
-    // Tells Moodle to trust X-Forwarded-Proto / X-Forwarded-For from
-    // the reverse proxy so https://wwwroot is preserved end-to-end.
     $CFG->sslproxy = true;
 }
 
@@ -58,14 +57,27 @@ if (getenv('MOODLE_DOCKER_BEHIND_PROXY') === '1') {
 $CFG->dataroot              = '/var/www/moodledata';
 $CFG->admin                 = 'admin';
 $CFG->directorypermissions  = 02777;
+$CFG->pathtophp             = '/usr/local/bin/php';
 
-// --- Developer-friendly defaults -------------------------------------
-$CFG->debug          = E_ALL;             // DEBUG_DEVELOPER
-$CFG->debugdisplay   = 1;
-$CFG->debugstringids = 1;
-$CFG->perfdebug      = 15;
-$CFG->allowthemechangeonurl = 1;
-$CFG->passwordpolicy = 0;                // dev only — relax password rules
-$CFG->pathtophp      = '/usr/local/bin/php';
+// --- Router (Moodle 5.x) ---------------------------------------------
+// Suppresses the "Router not configured" env check warning. The value
+// is the FQCN of the router implementation bundled with core. If
+// your Moodle version still flags it, check the corresponding class
+// under lib/router/ in your checkout.
+$CFG->router_class = '\\core\\router\\request_stack_router';
+
+// --- Debug vs production ---------------------------------------------
+// MOODLE_DEBUG=1 enables verbose developer output; anything else
+// (or unset) means production-safe defaults. Compose files set this
+// per environment.
+$debug = getenv('MOODLE_DEBUG') === '1';
+
+$CFG->debug                 = $debug ? E_ALL : 0;
+$CFG->debugdisplay          = $debug ? 1 : 0;
+$CFG->debugstringids        = $debug ? 1 : 0;
+$CFG->perfdebug             = $debug ? 15 : 0;
+$CFG->allowthemechangeonurl = $debug ? 1 : 0;
+// Strict password policy in prod; relax only for local dev.
+$CFG->passwordpolicy        = $debug ? 0 : 1;
 
 require_once(__DIR__ . '/lib/setup.php');

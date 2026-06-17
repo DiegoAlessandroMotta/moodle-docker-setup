@@ -46,13 +46,16 @@ RUN curl -fsSL -o /tmp/moodle.tgz "${MOODLE_TARBALL_URL}" \
 
 # Install Composer dependencies. Moodle 5.x requires a populated vendor/
 # directory (env check fails otherwise in the install wizard).
-# --no-dev: skip dev tools
-# --classmap-authoritative: faster autoloader at runtime, no PSR-0/4 lookup
-# --no-interaction: fail fast on errors instead of prompting
+# --no-dev: skip dev tools (Moodle ships no dev dependencies, but
+#   the flag is kept for safety).
+# --no-interaction: fail fast on errors instead of prompting.
+# NOTE: do NOT pass --classmap-authoritative — it breaks Moodle's
+# plugin system (autoloader skips PSR-0/4 fallback, so dynamically
+# registered plugin classes won't load). The env check explicitly
+# flags this and refuses to install with it.
 WORKDIR /var/www/html
 RUN composer install \
         --no-dev \
-        --classmap-authoritative \
         --no-interaction \
         --no-progress
 
