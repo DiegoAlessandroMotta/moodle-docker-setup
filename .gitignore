@@ -2,3 +2,7 @@
 .env
 .temp
 docker-reference
+
+# mkcert certs and keys (keep the directory via .gitkeep, ignore the contents)
+docker/caddy/certs/*
+!docker/caddy/certs/.gitkeep

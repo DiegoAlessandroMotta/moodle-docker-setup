@@ -1,0 +1,24 @@
+# Caddy reverse proxy for local Moodle dev.
+# TLS certs are generated on the host with mkcert and bind-mounted
+# from ./docker/caddy/certs/.
+
+# HTTP → HTTPS redirect for any host landing on this proxy.
+:80 {
+    redir https://{host}{uri} permanent
+}
+
+# HTTPS reverse proxy to the moodle container.
+# The hostname here must match the one you used with `mkcert`
+# and the entry in your /etc/hosts.
+moodle.local {
+    tls /etc/caddy/certs/moodle.local.pem /etc/caddy/certs/moodle.local-key.pem
+
+    reverse_proxy moodle:80 {
+        # Tell Moodle the original request was HTTPS, so $CFG->wwwroot
+        # stays consistent. Caddy sets X-Forwarded-For by default;
+        # we pin X-Forwarded-Proto and X-Forwarded-Host explicitly.
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+}

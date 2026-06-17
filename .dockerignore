@@ -1,0 +1,27 @@
+# Build context exclusions — keep the image lean and the cache clean.
+
+# Reference / cloned repos
+docker-reference/
+
+# Git metadata (we bake Moodle from a fresh clone in the Dockerfile)
+.git/
+.gitignore
+.gitattributes
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS junk
+.atl/
+.temp/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs and tooling files that don't belong in the image
+*.md
+!README.md
+README.md

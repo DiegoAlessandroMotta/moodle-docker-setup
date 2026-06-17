@@ -1,0 +1,96 @@
+# Moodle 5.2 (MOODLE_502_STABLE) local development stack.
+# Three services: custom Moodle image + MariaDB 10.11 + Caddy reverse proxy.
+# Access Moodle via https://${MOODLE_WEB_HOST} once Caddy is up.
+# Direct port 8000 is exposed on the moodle container for debugging
+# (e.g. `docker exec -it moodle-app bash` and `curl localhost`).
+
+services:
+  moodle:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PHP_VERSION: ${PHP_VERSION:-8.3}
+        MOODLE_BRANCH: ${MOODLE_BRANCH:-MOODLE_502_STABLE}
+    image: moodle-dev:5.2
+    container_name: moodle-app
+    restart: unless-stopped
+    ports:
+      - "${MOODLE_HTTP_PORT:-8000}:80"
+    environment:
+      MOODLE_DOCKER_DBTYPE: mariadb
+      MOODLE_DOCKER_DBNAME: ${MOODLE_DB_NAME}
+      MOODLE_DOCKER_DBUSER: ${MOODLE_DB_USER}
+      MOODLE_DOCKER_DBPASS: ${MOODLE_DB_PASSWORD}
+      MOODLE_DOCKER_DBCOLLATION: utf8mb4_bin
+      MOODLE_DOCKER_WEB_HOST: ${MOODLE_WEB_HOST}
+      MOODLE_DOCKER_WEB_PORT: ${MOODLE_HTTPS_PORT:-443}
+      MOODLE_DOCKER_WEB_PROTOCOL: ${MOODLE_WEB_PROTOCOL:-https}
+      MOODLE_DOCKER_BEHIND_PROXY: ${MOODLE_BEHIND_PROXY:-1}
+    volumes:
+      - moodledata:/var/www/moodledata
+      # Custom PHP overrides (zend.exception_ignore_args, etc.).
+      # Picked up by PHP from /usr/local/etc/php/conf.d/.
+      - ./docker/php/zz-moodle.ini:/usr/local/etc/php/conf.d/zz-moodle.ini:ro
+      # Local config.php — change values via .env, not here.
+      - ./config.php:/var/www/html/config.php:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - moodle-net
+
+  db:
+    image: mariadb:10.11
+    container_name: moodle-db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MOODLE_DB_NAME}
+      MARIADB_USER: ${MOODLE_DB_USER}
+      MARIADB_PASSWORD: ${MOODLE_DB_PASSWORD}
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --innodb_file_per_table=On
+      - --wait-timeout=28800
+      - --skip-log-bin
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - moodle-net
+
+  caddy:
+    image: caddy:2
+    container_name: moodle-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # mkcert-generated certs. Place them in ./docker/caddy/certs/
+      # with the names: <MOODLE_WEB_HOST>.pem and <MOODLE_WEB_HOST>-key.pem
+      - ./docker/caddy/certs:/etc/caddy/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - moodle
+    networks:
+      - moodle-net
+
+volumes:
+  moodledata:
+  dbdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  moodle-net:
+    driver: bridge
