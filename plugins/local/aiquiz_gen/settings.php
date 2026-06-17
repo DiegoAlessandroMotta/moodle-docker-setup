@@ -28,34 +28,29 @@ if ($hassiteconfig) {
     // Create settings page.
     $settings = new admin_settingpage('local_aiquiz_gen', get_string('pluginname', 'local_aiquiz_gen'));
 
-    // Check gateway availability (guard against autoload failure during install/upgrade).
-    $gatewayready = false;
-    if (class_exists('\local_aiquiz_gen\gateway_client')) {
-        $gatewayready = \local_aiquiz_gen\gateway_client::is_ready();
+    // Check AI provider availability (guard against autoload failure during install/upgrade).
+    $aiready = false;
+    if (class_exists('\local_aiquiz_gen\ai_client')) {
+        $aiready = \local_aiquiz_gen\ai_client::is_ready();
     }
 
-    // Show warning if gateway is not configured.
-    if (!$gatewayready) {
+    // Show warning if no AI provider is configured globally.
+    if (!$aiready) {
         $settings->add(new admin_setting_heading(
-            'local_aiquiz_gen/gateway_warning',
+            'local_aiquiz_gen/ai_warning',
             '',
-            '<div class="alert alert-warning">' . get_string('gateway_warning_msg', 'local_aiquiz_gen') . '</div>'
+            '<div class="alert alert-warning">' . get_string('ai_warning_msg', 'local_aiquiz_gen') . '</div>'
         ));
     }
 
-    // Gateway Configuration Section.
+    // AI Provider Section — informational only; configuration is global in
+    // Site administration → AI → Providers. Keeping the heading here just
+    // surfaces a link and the currently-enabled provider name(s) for clarity.
+    $aiadminurl = (new moodle_url('/admin/settings.php', ['section' => 'aiprovider']))->out(false);
     $settings->add(new admin_setting_heading(
-        'local_aiquiz_gen/gateway_heading',
-        get_string('gateway_heading', 'local_aiquiz_gen'),
-        get_string('gateway_heading_desc', 'local_aiquiz_gen')
-    ));
-
-    // Gateway API Key setting.
-    $settings->add(new admin_setting_configpasswordunmask(
-        'local_aiquiz_gen/gatewaykey',
-        get_string('gatewaykey', 'local_aiquiz_gen'),
-        get_string('gatewaykey_desc', 'local_aiquiz_gen'),
-        ''
+        'local_aiquiz_gen/ai_heading',
+        get_string('ai_heading', 'local_aiquiz_gen'),
+        get_string('ai_heading_desc', 'local_aiquiz_gen', $aiadminurl)
     ));
 
     // Settings heading.

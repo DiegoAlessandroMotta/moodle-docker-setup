@@ -7,6 +7,15 @@ services:
       - moodledata:/var/www/moodledata
       - ./docker/php/zz-moodle.ini:/usr/local/etc/php/conf.d/zz-moodle.ini:ro
       - ./config.php:/var/www/html/config.php:ro
+      # Hot-reload local plugins: bind-mount each plugin type into the
+      # corresponding Moodle directory. Edit files in plugins/local/<name>/
+      # and the changes are visible in the running container without rebuild.
+      # The Dockerfile's COPY of plugins/ provides the same content in prod.
+      - ./plugins/local:/var/www/html/local
+      - ./plugins/mod:/var/www/html/mod
+      - ./plugins/blocks:/var/www/html/blocks
+      - ./plugins/theme:/var/www/html/theme
+      - ./plugins/filter:/var/www/html/filter
     environment:
       MOODLE_DOCKER_WEB_HOST: ${MOODLE_WEB_HOST:-moodle.local}
       MOODLE_DOCKER_WEB_PORT: ${MOODLE_HTTPS_PORT:-443}

@@ -66,4 +66,18 @@ RUN mkdir -p /var/www/moodledata \
     && chown -R www-data:www-data /var/www/moodledata \
     && chmod 0777 /var/www/moodledata
 
+# Layer in custom plugins from the build context. The plugins/ directory
+# mirrors Moodle's expected layout (e.g. plugins/local/aiquiz_gen lands
+# at /var/www/html/local/aiquiz_gen), so a single COPY preserves the
+# type-aware hierarchy.
+#
+# Placed AFTER composer install: if any plugin declares Composer
+# dependencies, adding them here would force a vendor/ rebuild on every
+# plugin change. Plugins in this repo currently ship no Composer deps,
+# so the order is moot — but documented in case a future plugin does.
+#
+# --chown: plugins are written by www-data once installed/upgraded, so
+# the file ownership must match what Moodle's plugin code expects.
+COPY --chown=www-data:www-data plugins/ /var/www/html/
+
 EXPOSE 80

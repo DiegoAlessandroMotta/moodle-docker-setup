@@ -119,8 +119,8 @@ class debug_logs_page implements renderable, templatable {
         ];
 
         try {
-            $gatewayurl = \local_aiquiz_gen\gateway_client::get_gateway_url();
-            $gatewayready = \local_aiquiz_gen\gateway_client::is_ready();
+            $gatewayurl = \local_aiquiz_gen\ai_client::get_provider_info();
+            $gatewayready = \local_aiquiz_gen\ai_client::is_ready();
 
             $data['available'] = true;
             $data['statusclass'] = $gatewayready ? 'success' : 'danger';

@@ -57,8 +57,8 @@ try {
     ];
 
     // Check 2: AI gateway availability.
-    $gatewayurl = \local_aiquiz_gen\gateway_client::get_gateway_url();
-    $providerready = \local_aiquiz_gen\gateway_client::is_ready();
+    $gatewayurl = \local_aiquiz_gen\ai_client::get_provider_info();
+    $providerready = \local_aiquiz_gen\ai_client::is_ready();
 
     if ($providerready) {
         $health['checks']['gateway'] = [

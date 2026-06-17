@@ -314,7 +314,7 @@ class question_generator {
         global $DB;
 
         // Require gateway client.
-        if (!gateway_client::is_ready()) {
+        if (!ai_client::is_ready()) {
             throw new \moodle_exception(
                 'error:noaiprovider',
                 'local_aiquiz_gen',
@@ -387,7 +387,7 @@ class question_generator {
         ], $requestid);
 
         // Call gateway for question generation.
-        $response = gateway_client::generate_questions($payload, $quality);
+        $response = ai_client::generate_questions($payload, $quality);
 
         \local_aiquiz_gen\debug_logger::debug('Gateway response received', [
             'questions_returned' => count($response['questions'] ?? []),

@@ -201,7 +201,7 @@ $recenterrors = $DB->count_records_sql(
 );
 
 // Check AI provider configuration.
-$aiproviderconfigured = \local_aiquiz_gen\gateway_client::is_ready();
+$aiproviderconfigured = \local_aiquiz_gen\ai_client::is_ready();
 
 // Prepare chart data for AMD module.
 $trenddates = [];

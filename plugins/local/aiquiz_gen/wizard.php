@@ -58,7 +58,7 @@ $PAGE->add_body_class('aiquiz-step-' . (is_numeric($step) ? (int)$step : $step))
 $dependencyerrors = local_aiquiz_gen_check_plugin_dependencies();
 if (!empty($dependencyerrors)) {
     // Check if AI provider is critically missing.
-    $criticalerror = !\local_aiquiz_gen\gateway_client::is_ready();
+    $criticalerror = !\local_aiquiz_gen\ai_client::is_ready();
 
     echo $OUTPUT->header();
 
@@ -2596,7 +2596,7 @@ function local_aiquiz_gen_check_plugin_dependencies(): array {
 
     // Check Gateway availability.
     try {
-        if (!\local_aiquiz_gen\gateway_client::is_ready()) {
+        if (!\local_aiquiz_gen\ai_client::is_ready()) {
             $errors[] = get_string('wizard_gateway_not_configured', 'local_aiquiz_gen');
         }
     } catch (\Throwable $e) {

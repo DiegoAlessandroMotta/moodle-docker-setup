@@ -44,7 +44,7 @@ class wizard_helper {
         $errors = [];
 
         // Check if Gateway is configured.
-        if (!gateway_client::is_ready()) {
+        if (!ai_client::is_ready()) {
             $errors[] = get_string('error:noaiprovider', 'local_aiquiz_gen');
         }
 

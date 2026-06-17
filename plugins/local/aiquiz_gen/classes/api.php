@@ -374,7 +374,7 @@ class api {
      * @return bool True if available
      */
     public static function is_ai_hub_available(): bool {
-        return gateway_client::is_ready();
+        return ai_client::is_ready();
     }
 
     /**

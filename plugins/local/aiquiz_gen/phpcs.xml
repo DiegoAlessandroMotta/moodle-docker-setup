@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ruleset name="Moodle Coding Standards">
-    <description>Moodle coding standards for local_hlai_quizgen plugin</description>
+    <description>Moodle coding standards for local_aiquiz_gen plugin</description>
 
     <!-- Include the main Moodle ruleset -->
     <rule ref="moodle"/>

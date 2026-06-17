@@ -49,7 +49,7 @@ class topic_analyzer {
         }
 
         // Require gateway client.
-        if (!gateway_client::is_ready()) {
+        if (!ai_client::is_ready()) {
             throw new \moodle_exception(
                 'error:noaiprovider',
                 'local_aiquiz_gen',
@@ -92,7 +92,7 @@ class topic_analyzer {
                     'content' => $nonmarkercontent,
                     'courseid' => $request->courseid,
                 ];
-                $response = gateway_client::analyze_topics($payload, 'best');
+                $response = ai_client::analyze_topics($payload, 'best');
                 $aitopics = $response['topics'] ?? [];
             } catch (\Exception $e) {
                 // If AI fails but we have marker topics, continue with those.

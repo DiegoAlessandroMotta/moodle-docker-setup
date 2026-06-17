@@ -538,8 +538,8 @@ class debug_logger {
         // Check Gateway status.
         try {
             $context['gateway'] = [
-                'url' => gateway_client::get_gateway_url(),
-                'is_ready' => gateway_client::is_ready(),
+                'url' => ai_client::get_provider_info(),
+                'is_ready' => ai_client::is_ready(),
             ];
         } catch (\Exception $e) {
             $context['gateway'] = 'Error: ' . $e->getMessage();
