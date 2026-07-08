@@ -6,7 +6,7 @@ services:
       args:
         PHP_VERSION: ${PHP_VERSION:-8.3}
         MOODLE_TARBALL_URL: ${MOODLE_TARBALL_URL:-https://packaging.moodle.org/stable502/moodle-latest-502.tgz}
-    image: moodle:${MOODLE_IMAGE_TAG:-5.2}
+    # image: moodle:${MOODLE_IMAGE_TAG:-5.2}
     restart: unless-stopped
     environment:
       MOODLE_DOCKER_DBTYPE: ${MOODLE_DB_TYPE:-mariadb}
