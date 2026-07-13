@@ -569,7 +569,7 @@ PROMPT;
             $obj->difficulty = $q['difficulty'] ?? 'medium';
             $obj->blooms_level = $q['blooms_level'] ?? 'understand';
             $obj->ai_reasoning = $q['ai_reasoning'] ?? ($q['rationale'] ?? '');
-            $obj->answers = $q['answers'] ?? [];
+            $obj->answers = self::normalize_answers($q['answers'] ?? []);
             $obj->status = 'pending';
 
             if ($type === 'matching' && isset($q['subquestions'])) {
@@ -580,6 +580,37 @@ PROMPT;
         }
 
         return $questions;
+    }
+
+    /**
+     * Normalize the AI's answer array into the internal contract that the
+     * rest of the plugin (save_question, question_validator, deployer) reads.
+     *
+     * The prompt asks the model to return objects with the key `answertext`
+     * (per the question schema at build_questions_prompt()). The internal
+     * contract — and the consumers in question_generator::save_question() —
+     * read `text` instead. Without normalization every answer got persisted
+     * as an empty string, which is why MCQ/truefalse rendered without
+     * options.
+     *
+     * @param array $rawanswers Raw answers as returned by the LLM
+     * @return array Normalized answers: [['text' => ..., 'fraction' => float,
+     *               'feedback' => string, 'reasoning' => string], ...]
+     */
+    private static function normalize_answers(array $rawanswers): array {
+        $normalized = [];
+        foreach ($rawanswers as $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            $normalized[] = [
+                'text'      => (string)($a['answertext'] ?? ($a['text'] ?? '')),
+                'fraction'  => (float)($a['fraction'] ?? 0.0),
+                'feedback'  => (string)($a['feedback'] ?? ''),
+                'reasoning' => (string)($a['reasoning'] ?? ($a['distractor_reasoning'] ?? '')),
+            ];
+        }
+        return $normalized;
     }
 
     /**
