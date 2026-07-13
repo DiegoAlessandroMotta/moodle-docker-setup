@@ -349,6 +349,7 @@ $string['error:invalidquestiontype'] = 'Invalid question type: {$a}';
 $string['error:invalidrequestid'] = 'Invalid request ID';
 $string['error:invalidstatus'] = 'Invalid status: {$a}';
 $string['error:invalidstatustransition'] = 'Invalid status transition: {$a}';
+$string['error:invalidtruefalse'] = 'Malformed true/false question. The AI response must include exactly 2 answers (one with fraction 1.0 = the true answer, one with fraction 0.0 = the false answer). Details: {$a}';
 $string['error:maxregenerations'] = 'Maximum regeneration limit ({$a}) reached for this question';
 $string['error:noaiprovider'] = 'AI service is not configured. Enable at least one AI provider in Site administration → AI → Providers.';
 $string['error:noaiprovider_detail'] = 'No enabled, configured AI provider supports the generate_text action. Go to Site administration → AI → Providers, enable a provider, and enter its API key or local model configuration.';
