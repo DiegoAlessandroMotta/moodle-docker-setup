@@ -161,6 +161,24 @@
             </div>
         </div>
 
+        {{! Quiz language section }}
+        <div class="aiquiz-section aiquiz-section-language mt-5">
+            <div class="aiquiz-section-header">
+                <span class="aiquiz-section-icon"><i class="fa fa-globe aiquiz-icon-primary"></i></span>
+                <div class="aiquiz-section-title-wrap">
+                    <h4 class="aiquiz-section-label">{{{wizard_quiz_language}}}</h4>
+                    <p class="aiquiz-section-hint">{{{wizard_language_hint}}}</p>
+                </div>
+            </div>
+            <div class="aiquiz-config-card aiquiz-language-card">
+                <select name="language" id="quiz-language" class="aiquiz-config-input aiquiz-language-select">
+                    {{#language_options}}
+                    <option value="{{value}}"{{#is_selected}} selected="selected"{{/is_selected}}>{{{label}}}</option>
+                    {{/language_options}}
+                </select>
+            </div>
+        </div>
+
         {{! Navigation }}
         <div class="level is-mobile mt-5">
             <div class="level-left">

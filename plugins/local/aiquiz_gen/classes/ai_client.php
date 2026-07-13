@@ -332,6 +332,12 @@ class ai_client {
         $titletag = '<![CDATA[' . self::clean_for_cdata((string)($payload['topic_title'] ?? '')) . ']]>';
         $contenttag = '<![CDATA[' . self::clean_for_cdata((string)($payload['topic_content'] ?? '')) . ']]>';
 
+        // Language block (overrides default "<rule type=language>" when present).
+        $langblock = self::build_language_block($payload['language'] ?? null);
+        $languagerule = $langblock !== ''
+            ? ''  // Explicit language overrides the generic rule.
+            : "\n  <rule type=\"language\">Use the same language as the topic content. Do not translate.</rule>";
+
         return <<<PROMPT
 <role>
 You are an expert educational assessment designer. You create rigorous, fair,
@@ -367,21 +373,20 @@ content, and must follow the distribution constraints.
     <evaluate>{$bloomsdist['evaluate']}%</evaluate>
     <create>{$bloomsdist['create']}%</create>
   </blooms_distribution>{$extra}
-</requirements>
+</requirements>{$langblock}
 
 <constraints>
   <rule type="content_fidelity">All questions, answers, and feedback must be derivable from the topic content above. Do not invent facts.</rule>
   <rule type="multichoice_options">Every multichoice question must have exactly 4 answer options.</rule>
   <rule type="single_correct">In each multichoice question, exactly one answer has fraction=1.0; the other three have fraction=0.0.</rule>
-  <rule type="truefalse">Every truefalse question has exactly 2 options: one with fraction=1.0, one with fraction=0.0. The answer text must be "True" or "False" (or their localized equivalents in the topic's language).</rule>
+  <rule type="truefalse">Every truefalse question has exactly 2 options: one with fraction=1.0, one with fraction=0.0. The answer text must be "True" or "False" (or their localized equivalents in the output language).</rule>
   <rule type="shortanswer">For shortanswer, include a single answer with fraction=1.0 containing the expected response. Optionally add a few alternative acceptable answers with fraction=0.5 or so.</rule>
   <rule type="essay">For essay, the answers array may be empty. Provide detailed generalfeedback describing what a good answer would include.</rule>
   <rule type="matching">For matching, omit the answers array and provide a "subquestions" array of {"questiontext": "...", "answertext": "..."} pairs (at least 3 pairs).</rule>
   <rule type="distractors">Distractors must be plausible to a learner who has not mastered the topic, but unambiguously wrong to one who has.</rule>
   <rule type="feedback">Every answer must include a short feedback string explaining why it is right or wrong.</rule>
   <rule type="general_feedback">Each question must include generalfeedback that reinforces the underlying concept.</rule>
-  <rule type="deduplication">Do not repeat or closely paraphrase any question in <existing_questions_to_avoid>.</rule>
-  <rule type="language">Use the same language as the topic content. Do not translate.</rule>
+  <rule type="deduplication">Do not repeat or closely paraphrase any question in <existing_questions_to_avoid>.</rule>{$languagerule}
 </constraints>
 
 <output_format>
@@ -416,6 +421,7 @@ PROMPT;
             : "\n  <quality_mode>{$quality}</quality_mode>\n  <instruction>Aim for 5-10 high-quality, non-overlapping topics.</instruction>";
 
         $contenttag = '<![CDATA[' . self::clean_for_cdata((string)$content) . ']]>';
+        $langblock = self::build_language_block($payload['language'] ?? null);
 
         return <<<PROMPT
 <role>
@@ -429,7 +435,7 @@ A topic is a concept, technique, term, or fact that could plausibly be the
 subject of one or more quiz questions.
 </task>
 
-<content>{$contenttag}</content>{$extra}
+<content>{$contenttag}</content>{$extra}{$langblock}
 
 <topic_selection_criteria>
   <criterion>Each topic must be specific enough to support several quiz questions.</criterion>
@@ -437,6 +443,7 @@ subject of one or more quiz questions.
   <criterion>Topics must be non-overlapping.</criterion>
   <criterion>Skip generic filler like "introduction" or "conclusion" unless they contain substantive material.</criterion>
   <criterion>Skip exercises, problem statements, and questions that appear in the content.</criterion>
+  <criterion>Topic titles and summaries must be written in the output language specified above (or, if none, in the source content's language).</criterion>
 </topic_selection_criteria>
 
 <output_format>
@@ -462,6 +469,7 @@ PROMPT;
 
         $serializedtag = '<![CDATA[' . self::clean_for_cdata((string)$serialized) . ']]>';
         $instructionstag = '<![CDATA[' . self::clean_for_cdata((string)$instructions) . ']]>';
+        $langblock = self::build_language_block($payload['language'] ?? null);
 
         return <<<PROMPT
 <role>
@@ -481,7 +489,7 @@ Improve wording, distractor quality, and feedback.
 
 <editor_instructions>{$instructionstag}</editor_instructions>
 
-<quality_mode>{$quality}</quality_mode>
+<quality_mode>{$quality}</quality_mode>{$langblock}
 
 <output_format>
 Return ONLY a valid JSON array with exactly one element matching the standard
@@ -499,6 +507,7 @@ PROMPT;
         $serialized = $question ? json_encode($question, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}';
 
         $serializedtag = '<![CDATA[' . self::clean_for_cdata((string)$serialized) . ']]>';
+        $langblock = self::build_language_block($payload['language'] ?? null);
 
         return <<<PROMPT
 <role>
@@ -517,7 +526,7 @@ and must be plausible to a learner who has not mastered the topic.
 <serialized>{$serializedtag}</serialized>
 </current_question>
 
-<quality_mode>{$quality}</quality_mode>
+<quality_mode>{$quality}</quality_mode>{$langblock}
 
 <output_format>
 Return ONLY a valid JSON array of distractor objects:
@@ -526,6 +535,79 @@ Return ONLY a valid JSON array of distractor objects:
 ]
 </output_format>
 PROMPT;
+    }
+
+    // ─── Language resolution ────────────────────────────────────────────
+
+    /**
+     * Resolve a language code (or the "site_default" sentinel) to a
+     * normalized ['code' => ..., 'name' => ...] pair, or null when no
+     * language was requested.
+     *
+     * @param string|null $code Raw code from the payload. "site_default"
+     *                          resolves to $CFG->lang. Empty / null → null.
+     * @return array|null Null when no language is set, or ['code' => 'es',
+     *                   'name' => 'Spanish (Español)']
+     */
+    private static function resolve_language(?string $code): ?array {
+        global $CFG;
+
+        $code = trim((string)$code);
+        if ($code === '' || $code === 'site_default') {
+            $code = $CFG->lang ?? 'en';
+        }
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+
+        $languages = get_string_manager()->get_list_of_languages();
+        $name = $languages[$code] ?? null;
+        if ($name === null) {
+            // Unknown / uninstalled language pack: still pass it through so
+            // the LLM gets the ISO code, but log so admins notice.
+            debugging("ai_client: unknown language code '{$code}'", DEBUG_DEVELOPER);
+            $name = $code;
+        }
+        return ['code' => $code, 'name' => $name];
+    }
+
+    /**
+     * Build the XML block that instructs the LLM to write in a specific
+     * language. Returns '' when no language is set, in which case the
+     * generic "match topic content" rule still applies.
+     *
+     * The wizard already resolves "site_default" to a real ISO code before
+     * persisting, so a null/empty value here is the legitimate "no
+     * language requested" signal (used by legacy requests from before
+     * this feature). resolve_language() is still a safety net for direct
+     * callers that may pass a sentinel.
+     *
+     * @param string|null $code Raw code from the payload. "site_default"
+     *                          resolves to $CFG->lang. Empty / null → null.
+     * @return string XML fragment to inject into the prompt, '' if none
+     */
+    private static function build_language_block(?string $code): string {
+        // Null / empty → no explicit language. Skip the block entirely so
+        // the generic "<rule type=language>" applies (legacy behaviour).
+        if ($code === null || trim((string)$code) === '') {
+            return '';
+        }
+        $resolved = self::resolve_language($code);
+        if ($resolved === null) {
+            return '';
+        }
+        $safecode = htmlspecialchars($resolved['code'], ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        $safename = htmlspecialchars($resolved['name'], ENT_XML1 | ENT_QUOTES, 'UTF-8');
+        return <<<XML
+
+
+  <output_language>
+    <name>{$safename}</name>
+    <code>{$safecode}</code>
+  </output_language>
+  <instruction>Write every question, answer, feedback, and field in {$safename} (ISO code: {$safecode}), regardless of the source content's language. Translate domain concepts and terminology to {$safename}. Do not preserve source-language phrases.</instruction>
+XML;
     }
 
     // ─── Response parsers ───────────────────────────────────────────────
@@ -569,7 +651,7 @@ PROMPT;
             $obj->difficulty = $q['difficulty'] ?? 'medium';
             $obj->blooms_level = $q['blooms_level'] ?? 'understand';
             $obj->ai_reasoning = $q['ai_reasoning'] ?? ($q['rationale'] ?? '');
-            $obj->answers = $q['answers'] ?? [];
+            $obj->answers = self::normalize_answers($q['answers'] ?? []);
             $obj->status = 'pending';
 
             if ($type === 'matching' && isset($q['subquestions'])) {
@@ -580,6 +662,37 @@ PROMPT;
         }
 
         return $questions;
+    }
+
+    /**
+     * Normalize the AI's answer array into the internal contract that the
+     * rest of the plugin (save_question, question_validator, deployer) reads.
+     *
+     * The prompt asks the model to return objects with the key `answertext`
+     * (per the question schema at build_questions_prompt()). The internal
+     * contract — and the consumers in question_generator::save_question() —
+     * read `text` instead. Without normalization every answer got persisted
+     * as an empty string, which is why MCQ/truefalse rendered without
+     * options.
+     *
+     * @param array $rawanswers Raw answers as returned by the LLM
+     * @return array Normalized answers: [['text' => ..., 'fraction' => float,
+     *               'feedback' => string, 'reasoning' => string], ...]
+     */
+    private static function normalize_answers(array $rawanswers): array {
+        $normalized = [];
+        foreach ($rawanswers as $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            $normalized[] = [
+                'text'      => (string)($a['answertext'] ?? ($a['text'] ?? '')),
+                'fraction'  => (float)($a['fraction'] ?? 0.0),
+                'feedback'  => (string)($a['feedback'] ?? ''),
+                'reasoning' => (string)($a['reasoning'] ?? ($a['distractor_reasoning'] ?? '')),
+            ];
+        }
+        return $normalized;
     }
 
     /**

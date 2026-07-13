@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_aiquiz_gen';
-$plugin->version   = 2026061700;        // YYYYMMDDXX format.
+$plugin->version   = 2026061701;        // YYYYMMDDXX format.
 $plugin->requires  = 2022112809;        // Moodle 4.1.9+.
 $plugin->supported = [501, 502];        // Moodle 5.1+ to 5.2.x.
 $plugin->maturity  = MATURITY_STABLE;

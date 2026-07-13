@@ -46,6 +46,8 @@ services:
       - --innodb_file_per_table=On
       - --wait-timeout=28800
       - --skip-log-bin
+    ports:
+      - "${MOODLE_DB_PORT:-3306}:3306"
     volumes:
       - dbdata:/var/lib/mysql
     healthcheck:

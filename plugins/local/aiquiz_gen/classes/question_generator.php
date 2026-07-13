@@ -373,6 +373,7 @@ class question_generator {
             'existing_questions' => $existingquestions,
             'is_regeneration' => $isregeneration,
             'old_question_text' => $oldquestiontext,
+            'language' => $config['language'] ?? null,
         ];
 
         // Determine quality mode from config.

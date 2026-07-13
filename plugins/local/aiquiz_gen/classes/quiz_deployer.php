@@ -1052,26 +1052,52 @@ class quiz_deployer {
 
         $trueid = 0;
         $falseid = 0;
+        $answerscount = 0;
 
         foreach ($rs as $answer) {
             $answerrecord = new \stdClass();
             $answerrecord->question = $questionid;
-            $answerrecord->answer = $answer->answer; // Contains true or false value.
+            $answerrecord->answer = $answer->answer; // Display text (may be empty if LLM omitted it).
             $answerrecord->answerformat = FORMAT_MOODLE;
-            $answerrecord->fraction = self::normalize_fraction((float)$answer->fraction);
+            $fraction = self::normalize_fraction((float)$answer->fraction);
+            $answerrecord->fraction = $fraction;
             $answerrecord->feedback = $answer->feedback ?? '';
             $answerrecord->feedbackformat = FORMAT_MOODLE;
 
             $answerid = $DB->insert_record('question_answers', $answerrecord);
 
-            // Track which answer is true vs false.
-            if (stripos($answer->answer, 'true') !== false) {
+            // Decide which SLOT this answer goes in: the "True" option vs the "False" option.
+            // This is independent of whether the answer is the correct one — that lives in `fraction`
+            // and is read by Moodle's grading code, not by the slot assignment here.
+            //
+            // The original code used stripos($answer->answer, 'true'), which only worked for English.
+            // The LLM returns answers in the user's language ("Verdadero"/"Falso", "Vrai"/"Faux", etc.)
+            // or sometimes empty strings when the schema is malformed, so we need a multi-language match
+            // with a sortorder fallback for the empty case.
+            if (self::is_true_label($answer->answer, $answerscount)) {
                 $trueid = $answerid;
             } else {
                 $falseid = $answerid;
             }
+            $answerscount++;
         }
         $rs->close();
+
+        // Defensive validation: a truefalse question requires exactly one "True" answer and one
+        // "False" answer. If we couldn't determine the slot for either, fail loudly so the LLM
+        // response gets surfaced to the user instead of being persisted as a broken question that
+        // will explode in qtype_truefalse's initialise_question_instance().
+        if ($trueid === 0 || $falseid === 0 || $answerscount !== 2) {
+            throw new \moodle_exception(
+                'error:invalidtruefalse',
+                'local_aiquiz_gen',
+                '',
+                null,
+                "Truefalse question (moodle_id={$questionid}, gen_id={$genquestion->id}) requires "
+                . "exactly 2 answers labelled as True/False. "
+                . "Got trueid={$trueid}, falseid={$falseid}, count={$answerscount}."
+            );
+        }
 
         // Create the truefalse question record.
         $tfrecord = new \stdClass();
@@ -1081,6 +1107,42 @@ class quiz_deployer {
         $tfrecord->showstandardinstruction = 1;
 
         $DB->insert_record('question_truefalse', $tfrecord);
+    }
+
+    /**
+     * Decide whether an answer text represents the "True" slot of a truefalse question.
+     *
+     * Tries a multi-language label match first (works for English/Spanish/French/Portuguese/
+     * German/Italian/etc. outputs from the LLM). Falls back to sortorder convention
+     * (sortorder 0 = "True" option, sortorder 1 = "False" option) when the LLM left the
+     * answer text empty or used an unrecognised language.
+     *
+     * @param string $text Raw answer text from the LLM (may be empty).
+     * @param int $sortorder Position of this answer in the sortorder sequence (0-indexed).
+     * @return bool True if this answer represents the "True" option.
+     */
+    public static function is_true_label(string $text, int $sortorder): bool {
+        $normalized = strtolower(trim($text));
+        if ($normalized !== '') {
+            $truelabels = [
+                'true', 't',           // English.
+                'verdadero', 'v',      // Spanish.
+                'vrai',                // French.
+                'verdadeiro',          // Portuguese.
+                'wahr',                // German.
+                'vero',                // Italian.
+                'sí', 'si', 's',       // Spanish/Italian "yes".
+            ];
+            if (in_array($normalized, $truelabels, true)) {
+                return true;
+            }
+            // If we got a non-empty label that doesn't match "True" in any known language,
+            // assume it's the "False" slot. This is safer than throwing here because in
+            // pathological cases the question is still graded correctly by fraction.
+            return false;
+        }
+        // Empty text — fall back to sortorder: 0 -> True, 1 -> False.
+        return $sortorder === 0;
     }
 
     /**

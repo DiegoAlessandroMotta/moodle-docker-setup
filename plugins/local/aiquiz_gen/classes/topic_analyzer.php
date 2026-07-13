@@ -91,6 +91,7 @@ class topic_analyzer {
                 $payload = [
                     'content' => $nonmarkercontent,
                     'courseid' => $request->courseid,
+                    'language' => $request->language ?? null,
                 ];
                 $response = ai_client::analyze_topics($payload, 'best');
                 $aitopics = $response['topics'] ?? [];
