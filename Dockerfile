@@ -66,6 +66,13 @@ RUN mkdir -p /var/www/moodledata \
     && chown -R www-data:www-data /var/www/moodledata \
     && chmod 0777 /var/www/moodledata
 
+# Register a host-bind-mount fix-up. The base image sources every
+# /docker-entrypoint.d/*.sh in lexical order, BEFORE Apache starts, so
+# we still have root here. The script re-chowns moodledata to
+# www-data so dev bind-mounts (./data/moodle) work regardless of the
+# host UID. Sourced, not executed, so 0644 is enough — no chmod needed.
+COPY docker/entrypoint.d/ /docker-entrypoint.d/
+
 # Layer in custom plugins from the build context. The plugins/ directory
 # mirrors Moodle's expected layout (e.g. plugins/local/aiquiz_gen lands
 # at /var/www/html/public/local/aiquiz_gen), so a single COPY preserves
