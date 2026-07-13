@@ -1387,5 +1387,21 @@ function xmldb_local_aiquiz_gen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026021901, 'local', 'aiquiz_gen');
     }
 
+    if ($oldversion < 2026061701) {
+        // Add `language` column to local_aiquiz_gen_requests. Stores the
+        // resolved ISO language code (e.g. en, es) the LLM was instructed
+        // to use, so historical requests stay reproducible even if the
+        // site default later changes. NULL for legacy rows = "match topic
+        // content" (old behaviour).
+        $table = new xmldb_table('local_aiquiz_gen_requests');
+        $field = new xmldb_field('language', XMLDB_TYPE_CHAR, '20', null, null, null, null, 'custom_instructions');
+
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_plugin_savepoint(true, 2026061701, 'local', 'aiquiz_gen');
+    }
+
     return true;
 }

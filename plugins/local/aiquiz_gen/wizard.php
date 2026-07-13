@@ -930,6 +930,19 @@ function local_aiquiz_gen_handle_generate_questions(int $requestid) {
         $difficultydist = ['easy' => 0, 'medium' => 0, 'hard' => 100];
     }
 
+    // Resolve the target language. "site_default" → $CFG->lang. The DB
+    // stores the actual ISO code (never the sentinel) so historical
+    // requests stay reproducible even if $CFG->lang changes later.
+    global $CFG;
+    $rawlanguage = optional_param('language', '', PARAM_TEXT);
+    if (trim($rawlanguage) === '' || $rawlanguage === 'site_default') {
+        $rawlanguage = $CFG->lang ?? 'en';
+    }
+    $languages = get_string_manager()->get_list_of_languages();
+    $resolvedlanguage = isset($languages[trim($rawlanguage)])
+        ? trim($rawlanguage)
+        : ($CFG->lang ?? 'en');
+
     // Update request with parameters.
     $request->total_questions = $totalquestions;
     // CRITICAL FIX: Store DISTRIBUTION not expanded array.
@@ -938,6 +951,7 @@ function local_aiquiz_gen_handle_generate_questions(int $requestid) {
     $request->difficulty_distribution = json_encode($difficultydist);
     $request->blooms_distribution = json_encode($bloomsdist);  // Store Bloom's distribution.
     $request->processing_mode = $processingmode;
+    $request->language = $resolvedlanguage;
     $request->timemodified = time();
 
     $DB->update_record('local_aiquiz_gen_requests', $request);
@@ -2120,6 +2134,36 @@ function local_aiquiz_gen_render_step3(int $courseid, int $requestid): string {
         ];
     }
     $context['blooms_levels'] = $bloomsdata;
+
+    // Quiz language. Pre-selects: stored request language (when
+    // regenerating), else the global default_quiz_language setting.
+    global $CFG;
+    $context['wizard_quiz_language'] = get_string('wizard_quiz_language', 'local_aiquiz_gen');
+    $context['wizard_language_hint'] = get_string('wizard_language_hint', 'local_aiquiz_gen');
+    $languages = get_string_manager()->get_list_of_languages();
+    $sitelangname = $languages[$CFG->lang ?? 'en'] ?? ($CFG->lang ?? 'en');
+    $languageoptions = [
+        [
+            'value' => 'site_default',
+            'label' => get_string('wizard_language_site_default', 'local_aiquiz_gen', $sitelangname),
+            'is_selected' => false,
+        ],
+    ];
+    foreach ($languages as $code => $name) {
+        $languageoptions[] = [
+            'value' => $code,
+            'label' => $name,
+            'is_selected' => false,
+        ];
+    }
+    // Decide which option is pre-selected.
+    $defaultlanguage = get_config('local_aiquiz_gen', 'default_quiz_language') ?: 'site_default';
+    $preselect = !empty($request->language) ? $request->language : $defaultlanguage;
+    foreach ($languageoptions as &$opt) {
+        $opt['is_selected'] = ($opt['value'] === $preselect);
+    }
+    unset($opt);
+    $context['language_options'] = $languageoptions;
 
     // Navigation.
     $context['prev_url'] = (new moodle_url('/local/aiquiz_gen/wizard.php', [

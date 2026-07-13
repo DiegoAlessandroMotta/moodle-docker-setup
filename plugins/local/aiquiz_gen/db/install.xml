@@ -21,6 +21,7 @@
         <FIELD NAME="blooms_distribution" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON object: Bloom's taxonomy distribution"/>
         <FIELD NAME="question_types" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON array: [multichoice, truefalse, shortanswer, essay, matching]"/>
         <FIELD NAME="custom_instructions" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Optional custom instructions from teacher"/>
+        <FIELD NAME="language" TYPE="char" LENGTH="20" NOTNULL="false" DEFAULT="en" SEQUENCE="false" COMMENT="Resolved ISO language code the LLM must use (e.g. en, es). Resolved from default_quiz_language or per-quiz override at request time."/>
         <FIELD NAME="content_hash" TYPE="char" LENGTH="64" NOTNULL="false" SEQUENCE="false" COMMENT="SHA-256 hash of content for deduplication"/>
         <FIELD NAME="error_message" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if failed"/>
         <FIELD NAME="progress" TYPE="number" LENGTH="10" NOTNULL="true" DEFAULT="0" DECIMALS="2" SEQUENCE="false" COMMENT="Progress percentage 0-100"/>

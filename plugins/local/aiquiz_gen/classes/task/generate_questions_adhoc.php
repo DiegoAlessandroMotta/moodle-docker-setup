@@ -146,6 +146,7 @@ class generate_questions_adhoc extends \core\task\adhoc_task {
                 'custom_instructions' => $request->custom_instructions ?? '',
                 'global_question_index' => 0,
                 'global_question_types' => $globalquestiontypes, // Pass the expanded global array.
+                'language' => $request->language ?? null,
             ];
 
             // Generate questions for each topic with progress updates.

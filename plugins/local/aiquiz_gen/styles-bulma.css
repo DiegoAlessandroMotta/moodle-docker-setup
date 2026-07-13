@@ -10017,3 +10017,21 @@ body.path-local-aiquiz_gen #page-footer .purgecaches {
 .aiquiz-gen-wrapper .aiquiz-radio-mt { margin-top: 4px; accent-color: #2563eb; }
 .aiquiz-gen-wrapper .aiquiz-flex-center { display: flex; align-items: center; }
 .aiquiz-gen-wrapper .aiquiz-flex-center-all { display: flex; align-items: center; justify-content: center; }
+
+/* Language selector — overrides .aiquiz-config-input (designed for the
+ * "Total questions" number input: width 100%, font-size 1.5rem bold centered).
+ * We need a normal-size select, left-aligned, fitting its content. */
+.aiquiz-gen-wizard .aiquiz-language-card {
+    display: block;
+}
+.aiquiz-gen-wizard .aiquiz-language-select {
+    width: auto;
+    max-width: 360px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 400;
+    text-align: left;
+    color: var(--aiquiz-gray-800);
+    background-color: white;
+    cursor: pointer;
+}

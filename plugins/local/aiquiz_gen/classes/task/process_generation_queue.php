@@ -134,6 +134,7 @@ class process_generation_queue extends \core\task\scheduled_task {
             'blooms_distribution' => $bloomsdist,
             'question_types' => $questiontypes,
             'custom_instructions' => $request->custom_instructions ?? '',
+            'language' => $request->language ?? null,
         ];
 
         $totalgenerated = 0;

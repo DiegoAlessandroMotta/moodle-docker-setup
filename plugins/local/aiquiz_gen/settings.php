@@ -145,6 +145,25 @@ if ($hassiteconfig) {
         ]
     ));
 
+    // Default quiz language. "site_default" sentinel resolves to $CFG->lang
+    // at request time. The wizard lets teachers override per quiz.
+    $languageoptions = ['site_default' => get_string(
+        'wizard_language_site_default',
+        'local_aiquiz_gen',
+        current_language(),
+    )];
+    $installed = get_string_manager()->get_list_of_languages();
+    foreach ($installed as $code => $name) {
+        $languageoptions[$code] = $name;
+    }
+    $settings->add(new admin_setting_configselect(
+        'local_aiquiz_gen/default_quiz_language',
+        get_string('default_quiz_language', 'local_aiquiz_gen'),
+        get_string('default_quiz_language_desc', 'local_aiquiz_gen'),
+        'site_default',
+        $languageoptions
+    ));
+
     // Cleanup old requests.
     $settings->add(new admin_setting_configtext(
         'local_aiquiz_gen/cleanup_days',
